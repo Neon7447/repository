@@ -57,7 +57,7 @@ def f_exit():
 
 
 def help():
-    print(f'{" Справка по командам ":=^30}')
+    show_message(f'{" Справка по командам ":=^30}', 34)
     print(f'* Внимание! Если в параметрах есть пробелы, то возьмите их в кавычки')
     print(f'* Внимание! Если в параметрах не указать полный путь, то действие будет применено в каталоге по умоланию\n')
     for k, v in commands.items():
@@ -149,7 +149,7 @@ def f_copy(a, b):
     '''Копировать файл или каталог'''
     # Проверка на существование
     if not isexist(a):
-        a = f'{defc()}\\{a}'
+        a = f'{defc()}\\{a}'    # Добавить каталог по умолчанию перед именем
     if not isexist(a):
         er_tit = 'Не найден откуда копировать'
         show_message(f'{er_tit}: {a}')
@@ -185,6 +185,46 @@ def f_copy(a, b):
         show_message(er_tit, 32)
     return er_tit
 
+def f_move(a, b):
+    '''Копировать файл или каталог'''
+    # Проверка на существование
+    if not isexist(a):
+        a = f'{defc()}\\{a}'    # Добавить каталог по умолчанию перед именем
+    if not isexist(a):
+        er_tit = 'Не найден откуда переместить'
+        show_message(f'{er_tit}: {a}')
+        return er_tit
+    if not isexist(get_part(b, 0)):
+        er_tit = 'Не найден каталог куда переместить'
+        show_message(f'{er_tit}: {b}')
+        return er_tit
+    if not is_valid_name(get_part(b)):
+        er_tit = 'Не корректное имя куда копировать'
+        show_message(f'{er_tit}: {get_part(b)}')
+        return er_tit
+    # Узнать файл или каталог
+    if os.path.isfile(a):
+        if os.path.isdir(b):  # Если куда копировать каталог
+            b = f'{b}\\{get_part(a)}'  # Добавить имя файла
+        if isexist(b):
+            er_tit = 'Куда переместить уже существует'
+            show_message(f'{er_tit}: {b}')
+            return er_tit
+        shutil.move(a, b)
+        er_tit = 'Файл был удачно перемещен'
+        show_message(er_tit, 32)
+    else:
+        if get_part(a) != get_part(b):
+            b = f'{b}\\{get_part(a)}'
+        if isexist(b):
+            er_tit = 'Куда переместить уже существует'
+            show_message(f'{er_tit}: {b}')
+            return er_tit
+        shutil.copytree(a, b)
+        shutil.rmtree(a)
+        er_tit = 'Каталог был удачно перемещен'
+        show_message(er_tit, 32)
+    return er_tit
 
 def f_del(path):
     '''Удалить файл или каталог если он существует
@@ -244,6 +284,7 @@ def main():
         print()
 
 def set_tests():
+    '''Тесты'''
     # Удалить каталог или файл. Если указан несуществующий файл или каталог, то ошибки не выдавать
     assert f_del(r'D:\test') == 'ОК'                    # Удалить каталог
     assert f_del(r'Y:\test\Проверка 1') == 'ОК'         # Не ругаемся на несуществующий каталог
@@ -254,6 +295,8 @@ def set_tests():
     assert f_create_dir(r'D:\test') == 'Каталог был удачно создан'
     assert f_create_dir(r'D:\test\Каталог 1') == 'Каталог был удачно создан'
     assert f_create_dir(r'D:\test\Каталог 2') == 'Каталог был удачно создан'
+    assert cd(r'D:\test') == 'Был изменен каталог по умолчанию'
+    assert f_create_dir(r'Каталог 3') == 'Каталог был удачно создан'    # Создать без полного пути, в текущем каталоге
     # Создать файл
     assert  f_create_file(r'D:\test\Новый файл.txt') == 'Файл был удачно создан'
     assert  f_create_file(r'D:\test\new.txt') == 'Файл был удачно создан'
@@ -265,8 +308,22 @@ def set_tests():
     assert cd(r'Y:\test\Проверка 1') ==  'Не найден каталог'
     assert cd(r'D:\test') ==  'Был изменен каталог по умолчанию'
     # Копирование
+    assert f_copy(r'new.txt', r'Y:\test\Каталог 1') == 'Не найден каталог куда копировать'
+    # Т.к. не найден каталог test222, считаем что это имя файла без расширения
+    assert f_copy(r'new.txt', r'D:\test\test222') == 'Файл был удачно скопирован'
     assert f_copy(r'new.txt', r'D:\test\Каталог 1') == 'Файл был удачно скопирован'
-    assert f_copy(r'new.txt', r'D:\test\Каталог 8') == 'Не найден каталог'
+    assert f_copy(r'new.txt', r'D:\test\Каталог 1') == 'Куда копировать уже существует'
+    assert f_copy(r'new.txt', r'D:\test\Файл без расширения') == 'Файл был удачно скопирован'
+    assert f_copy(r'Каталог 1', r'D:\test\Каталог 2') == 'Каталог был удачно скопирован'
+    assert f_copy(r'Каталог 1', r'D:\test\Каталог 2') == 'Куда копировать уже существует'
+    # Перемещение
+    assert f_move(r'new.txt', r'D:\test\Каталог 2') == 'Файл был удачно перемещен'
+    assert f_move(r'Каталог 2', r'D:\test\Каталог 3') == 'Каталог был удачно перемещен'
+    assert f_move(r'Каталог 2', r'D:\test\Каталог 3') == 'Не найден откуда переместить'
+    assert f_move(r'Каталог 1', r'D:\test\Каталог 4\Каталог 5') == 'Не найден каталог куда переместить'
+    # Создать каталог 'Каталог 4' внутрь которого перенести каталог 'Каталог 1'
+    assert f_move(r'Каталог 1', r'D:\test\Каталог 4') == 'Каталог был удачно перемещен'
+    assert f_move(r'd:\test\test222', r'D:\test\Каталог 4') == 'Файл был удачно перемещен'
 
 
 if __name__ == '__main__':
@@ -274,18 +331,29 @@ if __name__ == '__main__':
     commands = {'exit': ['f_exit', 'Выход из программы'],
                 'help': ['help', 'Справка по командам'],
                 'dir': ['dir',
-                        'dir - показать содержимое каталога по умолчанию; \n  dir c:\kat - показать содержимое указанного каталога'],
+                        'dir        - показать содержимое каталога по умолчанию; \n  '
+                        'dir c:\kat - показать содержимое указанного каталога'],
                 'cd': ['cd',
                        'cd c:\kat           - сменить каталог по умолчанию; \n  '
                        'cd "c:\Новая папка" - сменить каталог по умолчанию'],
-                'cfile': ['f_create_file', ''],
-                'cdir': ['f_create_dir', ''],
-                'copy': ['f_copy', ''],
-                'move': ['f_move', ''],
+                'cfile': ['f_create_file',
+                          'cfile d:\data 1.txt    - создать файл; \n  '
+                          'cfile data 1.txt       - создать файл в каталоге по умолчанию; \n  '
+                          'cfile "d:\data 1.txt"  - создать файл с пробелом в имени'],
+                'cdir': ['f_create_dir',
+                         'cdir d:\Folder     - создать каталог; \n  '
+                         'cdir Folder        - создать каталог в каталоге по умолчанию; \n  '
+                         'cdir "d:\Folder 2" - создать каталог с пробелом в имени'],
+                'copy': ['f_copy',
+                          'copy "Каталог 1" "D:\Test\Каталог 2"  - копировать каталог с пробелом в имени; \n  '
+                          'copy new.txt "D:\Test\Каталог 2"      - копировать файл из каталога по умолчанию'],
+                'move': ['f_move',
+                         'move "Каталог 1" "D:\Test\Каталог 2"   - переместить каталог; \n  '
+                         'move new.txt "D:\Test\Каталог 2"       - переместить файл из каталога по умолчанию'],
                 'del': ['f_del',
                         'del c:\kat      - удалить каталог; \n  '
                         'del c:\doc.txt  - удалить файл; \n  '
                         'del doc.txt     - удалить файл в каталоге по умолчанию']
                 }
-    set_tests()
+    # set_tests()     # Тестирование кода
     main()
